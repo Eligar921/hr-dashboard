@@ -15,7 +15,6 @@ st.set_page_config(
 # ---------- Кастомный CSS для тёмной темы ----------
 st.markdown("""
 <style>
-    /* Основной фон */
     .stApp {
         background-color: #0e1117;
     }
@@ -24,7 +23,6 @@ st.markdown("""
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
-    /* Карточки метрик */
     .metric-card {
         background-color: #262730;
         border-radius: 12px;
@@ -56,7 +54,6 @@ st.markdown("""
         float: right;
         opacity: 0.8;
     }
-    /* Заголовки */
     h1, h2, h3, .section-header {
         color: #fafafa;
         font-weight: 600;
@@ -69,22 +66,18 @@ st.markdown("""
         font-size: 1.3rem;
         font-weight: 600;
     }
-    /* Сайдбар */
     .css-1d391kg {
         background-color: #1e1e24;
         border-right: 1px solid #374151;
     }
-    /* Текст в сайдбаре */
     .css-1d391kg, .css-1d391kg label, .css-1d391kg .stSelectbox label {
         color: #fafafa;
     }
-    /* Таблица */
     .dataframe {
         border-radius: 8px;
         overflow: hidden;
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
-    /* Кнопка */
     .stButton button {
         background-color: #1f77b4;
         color: white;
@@ -97,11 +90,9 @@ st.markdown("""
         background-color: #2c8ac9;
         color: white;
     }
-    /* Загрузчик файла */
     .stFileUploader label {
         color: #fafafa;
     }
-    /* Мультиселект */
     .stMultiSelect label {
         color: #fafafa;
     }
@@ -136,10 +127,11 @@ if uploaded_file is not None:
     total_hired_col = "Всего трудоустроено через источник привлечения, в чел."
     ompp_hired_col = "Всего трудоустроено через источник привлечения без АПД -Только от ОМПП"
     avito_responses_col = "Отклики авито"
-    avito_cost_col = "в т.ч.. Job board Авито"
+    avito_cost_col = "в т.ч.. Job board Авито"          # колонка затрат на Авито
     total_cost_col = "Общие затраты, в руб."
+    avito_hired_col = "в т.ч. Job board Авито"          # колонка трудоустроенных через Авито
 
-    for col in [total_hired_col, ompp_hired_col, avito_responses_col, avito_cost_col, total_cost_col]:
+    for col in [total_hired_col, ompp_hired_col, avito_responses_col, avito_cost_col, total_cost_col, avito_hired_col]:
         if col in df.columns:
             df[col] = to_numeric(df[col])
 
@@ -187,7 +179,7 @@ if uploaded_file is not None:
         selected_sources = st.multiselect(
             "Выберите источники для анализа",
             options=source_columns,
-            default=source_columns  # все выбраны
+            default=source_columns
         )
 
     # ---------- Метрики (4 карточки) ----------
@@ -196,7 +188,6 @@ if uploaded_file is not None:
     total_hired = df_filtered[total_hired_col].sum() if total_hired_col in df_filtered else 0
     ompp_hired = df_filtered[ompp_hired_col].sum() if ompp_hired_col in df_filtered else 0
 
-    avito_hired_col = "в т.ч. Job board Авито"
     if avito_hired_col in df_filtered.columns and avito_cost_col in df_filtered.columns:
         total_avito_cost = df_filtered[avito_cost_col].sum()
         total_avito_hired = df_filtered[avito_hired_col].sum()
@@ -244,38 +235,68 @@ if uploaded_file is not None:
     df_plot = df_filtered.copy()
     df_plot["Месяц"] = df_plot["Дата"].apply(format_russian_month)
 
-    # ---------- Графики (единая тёмная стилистика) ----------
-    # Задаём общие настройки для всех графиков
+    # Общие настройки графиков (тёмная тема)
     plot_template = "plotly_dark"
     font_color = "#fafafa"
     title_font_color = "#fafafa"
 
-    # 1. Динамика трудоустроенных
-    st.markdown("<div class='section-header'>📅 Динамика найма</div>", unsafe_allow_html=True)
-    if total_hired_col in df_plot:
-        fig_total = px.line(
-            df_plot, x="Месяц", y=total_hired_col,
-            title="Всего трудоустроенных по месяцам",
+    # ---------- 1. График: Трудоустроено от ОМПП ----------
+    st.markdown("<div class='section-header'>📅 Динамика найма (ОМПП)</div>", unsafe_allow_html=True)
+    if ompp_hired_col in df_plot:
+        fig_ompp = px.line(
+            df_plot, x="Месяц", y=ompp_hired_col,
+            title="Трудоустроено от ОМПП по месяцам",
             markers=True,
             template=plot_template,
-            color_discrete_sequence=["#1f77b4"]
+            color_discrete_sequence=["#ff7f0e"]
         )
-        fig_total.update_layout(
+        fig_ompp.update_layout(
             font=dict(color=font_color),
             title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Трудоустроено",
             hovermode="x unified",
             margin=dict(l=20, r=20, t=40, b=20),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
             xaxis=dict(color=font_color),
             yaxis=dict(color=font_color)
         )
-        st.plotly_chart(fig_total, use_container_width=True)
+        st.plotly_chart(fig_ompp, use_container_width=True)
+    else:
+        st.info("Нет данных по трудоустроенным от ОМПП для выбранного периода")
 
-    # 2. Динамика откликов
+    # ---------- 2. График: Средняя стоимость выхода с Авито ----------
+    st.markdown("<div class='section-header'>💰 Средняя стоимость выхода с Авито</div>", unsafe_allow_html=True)
+    if avito_hired_col in df_plot and avito_cost_col in df_plot:
+        df_plot["avito_cost_per_hire"] = df_plot[avito_cost_col] / df_plot[avito_hired_col].replace(0, pd.NA)
+        if df_plot["avito_cost_per_hire"].notna().any():
+            fig_avito_cost = px.line(
+                df_plot, x="Месяц", y="avito_cost_per_hire",
+                title="Средняя стоимость выхода с Авито по месяцам (руб.)",
+                markers=True,
+                template=plot_template,
+                color_discrete_sequence=["#2ca02c"]
+            )
+            fig_avito_cost.update_layout(
+                font=dict(color=font_color),
+                title_font=dict(color=title_font_color),
+                xaxis_title="Месяц",
+                yaxis_title="Средняя стоимость (руб.)",
+                hovermode="x unified",
+                margin=dict(l=20, r=20, t=40, b=20),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(color=font_color),
+                yaxis=dict(color=font_color)
+            )
+            st.plotly_chart(fig_avito_cost, use_container_width=True)
+        else:
+            st.info("Недостаточно данных для расчёта средней стоимости (нет трудоустроенных через Авито)")
+    else:
+        st.info("Нет данных по затратам или трудоустроенным через Авито")
+
+    # ---------- 3. Динамика откликов ----------
     if avito_responses_col in df_plot:
         st.markdown("<div class='section-header'>📞 Динамика откликов (Авито)</div>", unsafe_allow_html=True)
         fig_responses = px.line(
@@ -299,9 +320,9 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
-    # 3. Сравнение откликов и трудоустроенных
-    if avito_responses_col in df_plot and total_hired_col in df_plot:
-        st.markdown("<div class='section-header'>📊 Соотношение откликов и трудоустроенных</div>", unsafe_allow_html=True)
+    # ---------- 4. Соотношение откликов и трудоустроенных (ОМПП) ----------
+    if avito_responses_col in df_plot and ompp_hired_col in df_plot:
+        st.markdown("<div class='section-header'>📊 Соотношение откликов и трудоустроенных (ОМПП)</div>", unsafe_allow_html=True)
         fig_compare = go.Figure()
         fig_compare.add_trace(go.Scatter(
             x=df_plot["Месяц"], y=df_plot[avito_responses_col],
@@ -311,14 +332,14 @@ if uploaded_file is not None:
             marker=dict(size=6)
         ))
         fig_compare.add_trace(go.Scatter(
-            x=df_plot["Месяц"], y=df_plot[total_hired_col],
-            name='Трудоустроено (всего)',
+            x=df_plot["Месяц"], y=df_plot[ompp_hired_col],
+            name='Трудоустроено от ОМПП',
             mode='lines+markers',
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color='#ff7f0e', width=2),
             marker=dict(size=6)
         ))
         fig_compare.update_layout(
-            title="Динамика откликов и трудоустроенных",
+            title="Динамика откликов и трудоустроенных (ОМПП)",
             xaxis_title="Месяц",
             yaxis_title="Количество",
             template=plot_template,
@@ -334,7 +355,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_compare, use_container_width=True)
 
-    # 4. Динамика по источникам (если выбраны)
+    # ---------- 5. Динамика по источникам (выбранные) ----------
     if selected_sources:
         st.markdown("<div class='section-header'>📊 Динамика по источникам</div>", unsafe_allow_html=True)
         df_sources = df_plot[["Месяц"] + selected_sources].melt(
@@ -361,7 +382,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_sources, use_container_width=True)
 
-    # 5. Сравнение источников (суммарно)
+    # ---------- 6. Сравнение источников (суммарно) ----------
     if selected_sources:
         st.markdown("<div class='section-header'>⚖️ Сравнение источников (суммарно)</div>", unsafe_allow_html=True)
         source_totals = df_filtered[selected_sources].sum().sort_values(ascending=False)
@@ -423,16 +444,16 @@ if uploaded_file is not None:
                     )
                     st.plotly_chart(fig_cost, use_container_width=True)
 
-    # 6. Себестоимость найма
+    # ---------- 7. Себестоимость найма (общая) ----------
     if total_hired_col in df_plot and total_cost_col in df_plot:
-        st.markdown("<div class='section-header'>💰 Себестоимость найма</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-header'>💰 Себестоимость найма (общая)</div>", unsafe_allow_html=True)
         df_plot["Себестоимость"] = df_plot[total_cost_col] / df_plot[total_hired_col]
         fig_cost = px.line(
             df_plot, x="Месяц", y="Себестоимость",
             title="Динамика себестоимости найма (руб./чел.)",
             markers=True,
             template=plot_template,
-            color_discrete_sequence=["#2ca02c"]
+            color_discrete_sequence=["#9467bd"]
         )
         fig_cost.update_layout(
             font=dict(color=font_color),
