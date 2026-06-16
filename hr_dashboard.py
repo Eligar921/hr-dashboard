@@ -4,20 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import io
 
-# ---------- Определение темы ----------
-theme = st.get_option("theme.base")  # 'light' или 'dark'
-if theme == "dark":
-    bg_color = "#0e1117"
-    card_bg = "#262730"
-    text_color = "#fafafa"
-    plotly_template = "plotly_dark"
-else:
-    bg_color = "#ffffff"
-    card_bg = "#ffffff"
-    text_color = "#000000"
-    plotly_template = "plotly_white"
-
-# ---------- Настройки страницы ----------
+# ---------- Настройки страницы (тёмная тема) ----------
 st.set_page_config(
     page_title="HR-дашборд",
     page_icon="📊",
@@ -25,97 +12,105 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ---------- Кастомный CSS (адаптивный к теме) ----------
-st.markdown(f"""
+# ---------- Кастомный CSS для тёмной темы ----------
+st.markdown("""
 <style>
     /* Основной фон */
-    .stApp {{
-        background-color: {bg_color};
-    }}
-    .main .block-container {{
-        background-color: {bg_color};
+    .stApp {
+        background-color: #0e1117;
+    }
+    .main .block-container {
+        background-color: #0e1117;
         padding-top: 2rem;
         padding-bottom: 2rem;
-    }}
+    }
     /* Карточки метрик */
-    .metric-card {{
-        background-color: {card_bg};
+    .metric-card {
+        background-color: #262730;
         border-radius: 12px;
         padding: 1.2rem 1rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         border-left: 5px solid #1f77b4;
         transition: transform 0.2s;
         height: 100%;
-        color: {text_color};
-    }}
-    .metric-card:hover {{
+        color: #fafafa;
+    }
+    .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    }}
-    .metric-card .label {{
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .metric-card .label {
         font-size: 0.9rem;
-        color: {'#9ca3af' if theme == 'dark' else '#6b7280'};
+        color: #9ca3af;
         font-weight: 500;
         letter-spacing: 0.02em;
-    }}
-    .metric-card .value {{
+    }
+    .metric-card .value {
         font-size: 1.8rem;
         font-weight: 700;
-        color: {text_color};
+        color: #fafafa;
         margin-top: 0.25rem;
-    }}
-    .metric-card .icon {{
+    }
+    .metric-card .icon {
         font-size: 2.2rem;
         float: right;
         opacity: 0.8;
-    }}
+    }
     /* Заголовки */
-    h1, h2, h3, .section-header {{
-        color: {text_color};
+    h1, h2, h3, .section-header {
+        color: #fafafa;
         font-weight: 600;
-    }}
-    .section-header {{
+    }
+    .section-header {
         margin-top: 1.8rem;
         margin-bottom: 0.8rem;
-        border-bottom: 2px solid {'#374151' if theme == 'dark' else '#e5e7eb'};
+        border-bottom: 2px solid #374151;
         padding-bottom: 0.4rem;
         font-size: 1.3rem;
         font-weight: 600;
-    }}
+    }
     /* Сайдбар */
-    .css-1d391kg {{
-        background-color: {card_bg};
-        border-right: 1px solid {'#374151' if theme == 'dark' else '#e5e7eb'};
-    }}
+    .css-1d391kg {
+        background-color: #1e1e24;
+        border-right: 1px solid #374151;
+    }
+    /* Текст в сайдбаре */
+    .css-1d391kg, .css-1d391kg label, .css-1d391kg .stSelectbox label {
+        color: #fafafa;
+    }
     /* Таблица */
-    .dataframe {{
+    .dataframe {
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }}
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
     /* Кнопка */
-    .stButton button {{
+    .stButton button {
         background-color: #1f77b4;
         color: white;
         border-radius: 8px;
         font-weight: 500;
         transition: 0.2s;
         border: none;
-    }}
-    .stButton button:hover {{
+    }
+    .stButton button:hover {
         background-color: #2c8ac9;
         color: white;
-    }}
-    /* Графики (фон) */
-    .js-plotly-plot {{
-        background-color: transparent !important;
-    }}
+    }
+    /* Загрузчик файла */
+    .stFileUploader label {
+        color: #fafafa;
+    }
+    /* Мультиселект */
+    .stMultiSelect label {
+        color: #fafafa;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- Заголовок ----------
-st.markdown(f"<h1 style='color:{text_color}; font-weight:700;'>📊 HR-дашборд</h1>", unsafe_allow_html=True)
-st.markdown(f"<p style='color:{'#9ca3af' if theme == 'dark' else '#6b7280'}; margin-top:-0.5rem;'>Анализ эффективности подбора персонала</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='color:#fafafa; font-weight:700;'>📊 HR-дашборд</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#9ca3af; margin-top:-0.5rem;'>Анализ эффективности подбора персонала</p>", unsafe_allow_html=True)
 
 # ---------- Функции ----------
 def to_numeric(series):
@@ -192,7 +187,7 @@ if uploaded_file is not None:
         selected_sources = st.multiselect(
             "Выберите источники для анализа",
             options=source_columns,
-            default=source_columns  # теперь все выбраны
+            default=source_columns  # все выбраны
         )
 
     # ---------- Метрики (4 карточки) ----------
@@ -249,7 +244,12 @@ if uploaded_file is not None:
     df_plot = df_filtered.copy()
     df_plot["Месяц"] = df_plot["Дата"].apply(format_russian_month)
 
-    # ---------- Графики ----------
+    # ---------- Графики (единая тёмная стилистика) ----------
+    # Задаём общие настройки для всех графиков
+    plot_template = "plotly_dark"
+    font_color = "#fafafa"
+    title_font_color = "#fafafa"
+
     # 1. Динамика трудоустроенных
     st.markdown("<div class='section-header'>📅 Динамика найма</div>", unsafe_allow_html=True)
     if total_hired_col in df_plot:
@@ -257,17 +257,21 @@ if uploaded_file is not None:
             df_plot, x="Месяц", y=total_hired_col,
             title="Всего трудоустроенных по месяцам",
             markers=True,
-            template=plotly_template,
+            template=plot_template,
             color_discrete_sequence=["#1f77b4"]
         )
         fig_total.update_layout(
+            font=dict(color=font_color),
+            title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Трудоустроено",
             hovermode="x unified",
             margin=dict(l=20, r=20, t=40, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(color=font_color),
+            yaxis=dict(color=font_color)
         )
         st.plotly_chart(fig_total, use_container_width=True)
 
@@ -278,16 +282,20 @@ if uploaded_file is not None:
             df_plot, x="Месяц", y=avito_responses_col,
             title="Количество откликов по месяцам",
             markers=True,
-            template=plotly_template,
+            template=plot_template,
             color_discrete_sequence=["#d62728"]
         )
         fig_responses.update_layout(
+            font=dict(color=font_color),
+            title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Отклики",
             hovermode="x unified",
             margin=dict(l=20, r=20, t=40, b=20),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(color=font_color),
+            yaxis=dict(color=font_color)
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
@@ -313,12 +321,16 @@ if uploaded_file is not None:
             title="Динамика откликов и трудоустроенных",
             xaxis_title="Месяц",
             yaxis_title="Количество",
-            template=plotly_template,
+            template=plot_template,
+            font=dict(color=font_color),
+            title_font=dict(color=title_font_color),
             hovermode="x unified",
             margin=dict(l=20, r=20, t=40, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(color=font_color),
+            yaxis=dict(color=font_color)
         )
         st.plotly_chart(fig_compare, use_container_width=True)
 
@@ -332,16 +344,20 @@ if uploaded_file is not None:
             df_sources, x="Месяц", y="Трудоустроено", color="Источник",
             title="Трудоустроенные по источникам",
             markers=True,
-            template=plotly_template
+            template=plot_template
         )
         fig_sources.update_layout(
+            font=dict(color=font_color),
+            title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Трудоустроено",
             hovermode="x unified",
             margin=dict(l=20, r=20, t=40, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(color=font_color),
+            yaxis=dict(color=font_color)
         )
         st.plotly_chart(fig_sources, use_container_width=True)
 
@@ -356,13 +372,19 @@ if uploaded_file is not None:
                 orientation='h',
                 title="Количество трудоустроенных по источникам",
                 labels={'x': 'Трудоустроено', 'y': ''},
-                template=plotly_template,
+                template=plot_template,
                 color=source_totals.values,
                 color_continuous_scale="Blues"
             )
-            fig_bar.update_layout(margin=dict(l=10, r=10, t=30, b=10),
-                                  plot_bgcolor='rgba(0,0,0,0)',
-                                  paper_bgcolor='rgba(0,0,0,0)')
+            fig_bar.update_layout(
+                font=dict(color=font_color),
+                title_font=dict(color=title_font_color),
+                margin=dict(l=10, r=10, t=30, b=10),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(color=font_color),
+                yaxis=dict(color=font_color)
+            )
             st.plotly_chart(fig_bar, use_container_width=True)
 
         # Затраты на источники (если есть)
@@ -386,13 +408,19 @@ if uploaded_file is not None:
                     fig_cost = px.bar(
                         cost_df, x="Затраты", y="Источник", orientation='h',
                         title="Затраты на источники (руб)",
-                        template=plotly_template,
+                        template=plot_template,
                         color="Затраты",
                         color_continuous_scale="Reds"
                     )
-                    fig_cost.update_layout(margin=dict(l=10, r=10, t=30, b=10),
-                                           plot_bgcolor='rgba(0,0,0,0)',
-                                           paper_bgcolor='rgba(0,0,0,0)')
+                    fig_cost.update_layout(
+                        font=dict(color=font_color),
+                        title_font=dict(color=title_font_color),
+                        margin=dict(l=10, r=10, t=30, b=10),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        xaxis=dict(color=font_color),
+                        yaxis=dict(color=font_color)
+                    )
                     st.plotly_chart(fig_cost, use_container_width=True)
 
     # 6. Себестоимость найма
@@ -403,16 +431,20 @@ if uploaded_file is not None:
             df_plot, x="Месяц", y="Себестоимость",
             title="Динамика себестоимости найма (руб./чел.)",
             markers=True,
-            template=plotly_template,
+            template=plot_template,
             color_discrete_sequence=["#2ca02c"]
         )
         fig_cost.update_layout(
+            font=dict(color=font_color),
+            title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Себестоимость (руб.)",
             hovermode="x unified",
             margin=dict(l=20, r=20, t=40, b=20),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(color=font_color),
+            yaxis=dict(color=font_color)
         )
         st.plotly_chart(fig_cost, use_container_width=True)
 
