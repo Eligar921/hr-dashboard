@@ -127,9 +127,9 @@ if uploaded_file is not None:
     total_hired_col = "Всего трудоустроено через источник привлечения, в чел."
     ompp_hired_col = "Всего трудоустроено через источник привлечения без АПД -Только от ОМПП"
     avito_responses_col = "Отклики авито"
-    avito_cost_col = "в т.ч.. Job board Авито"          # колонка затрат на Авито
+    avito_cost_col = "в т.ч.. Job board Авито"
     total_cost_col = "Общие затраты, в руб."
-    avito_hired_col = "в т.ч. Job board Авито"          # колонка трудоустроенных через Авито
+    avito_hired_col = "в т.ч. Job board Авито"
 
     for col in [total_hired_col, ompp_hired_col, avito_responses_col, avito_cost_col, total_cost_col, avito_hired_col]:
         if col in df.columns:
@@ -175,7 +175,6 @@ if uploaded_file is not None:
         else:
             df_filtered = df.copy()
 
-        # Мультиселект с выбором всех источников по умолчанию
         selected_sources = st.multiselect(
             "Выберите источники для анализа",
             options=source_columns,
@@ -235,7 +234,6 @@ if uploaded_file is not None:
     df_plot = df_filtered.copy()
     df_plot["Месяц"] = df_plot["Дата"].apply(format_russian_month)
 
-    # Общие настройки графиков (тёмная тема)
     plot_template = "plotly_dark"
     font_color = "#fafafa"
     title_font_color = "#fafafa"
@@ -320,42 +318,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
-    # ---------- 4. Соотношение откликов и трудоустроенных (ОМПП) ----------
-    if avito_responses_col in df_plot and ompp_hired_col in df_plot:
-        st.markdown("<div class='section-header'>📊 Соотношение откликов и трудоустроенных (ОМПП)</div>", unsafe_allow_html=True)
-        fig_compare = go.Figure()
-        fig_compare.add_trace(go.Scatter(
-            x=df_plot["Месяц"], y=df_plot[avito_responses_col],
-            name='Отклики Авито',
-            mode='lines+markers',
-            line=dict(color='#d62728', width=2),
-            marker=dict(size=6)
-        ))
-        fig_compare.add_trace(go.Scatter(
-            x=df_plot["Месяц"], y=df_plot[ompp_hired_col],
-            name='Трудоустроено от ОМПП',
-            mode='lines+markers',
-            line=dict(color='#ff7f0e', width=2),
-            marker=dict(size=6)
-        ))
-        fig_compare.update_layout(
-            title="Динамика откликов и трудоустроенных (ОМПП)",
-            xaxis_title="Месяц",
-            yaxis_title="Количество",
-            template=plot_template,
-            font=dict(color=font_color),
-            title_font=dict(color=title_font_color),
-            hovermode="x unified",
-            margin=dict(l=20, r=20, t=40, b=20),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            xaxis=dict(color=font_color),
-            yaxis=dict(color=font_color)
-        )
-        st.plotly_chart(fig_compare, use_container_width=True)
-
-    # ---------- 5. Динамика по источникам (выбранные) ----------
+    # ---------- 4. Динамика по источникам (выбранные) ----------
     if selected_sources:
         st.markdown("<div class='section-header'>📊 Динамика по источникам</div>", unsafe_allow_html=True)
         df_sources = df_plot[["Месяц"] + selected_sources].melt(
@@ -382,7 +345,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_sources, use_container_width=True)
 
-    # ---------- 6. Сравнение источников (суммарно) ----------
+    # ---------- 5. Сравнение источников (суммарно) ----------
     if selected_sources:
         st.markdown("<div class='section-header'>⚖️ Сравнение источников (суммарно)</div>", unsafe_allow_html=True)
         source_totals = df_filtered[selected_sources].sum().sort_values(ascending=False)
@@ -444,7 +407,7 @@ if uploaded_file is not None:
                     )
                     st.plotly_chart(fig_cost, use_container_width=True)
 
-    # ---------- 7. Себестоимость найма (общая) ----------
+    # ---------- 6. Себестоимость найма (общая) ----------
     if total_hired_col in df_plot and total_cost_col in df_plot:
         st.markdown("<div class='section-header'>💰 Себестоимость найма (общая)</div>", unsafe_allow_html=True)
         df_plot["Себестоимость"] = df_plot[total_cost_col] / df_plot[total_hired_col]
