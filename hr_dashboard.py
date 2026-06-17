@@ -215,28 +215,21 @@ if uploaded_file is not None:
     # ---------- Фильтры (сайдбар) - только диапазон дат (месяц-год) ----------
     with st.sidebar:
         st.header("🔍 Фильтры")
-        # Получаем минимальную и максимальную дату из основных данных
         min_date = df_main["Дата"].min()
         max_date = df_main["Дата"].max()
-        # Создаём списки для годов и месяцев
         years = list(range(min_date.year, max_date.year + 1))
         months = list(range(1, 13))
-        # Селекторы года и месяца (начало и конец периода)
         start_year = st.selectbox("Год начала", years, index=0)
         start_month = st.selectbox("Месяц начала", months, index=0, format_func=lambda x: f"{x:02d}")
         end_year = st.selectbox("Год окончания", years, index=len(years)-1)
         end_month = st.selectbox("Месяц окончания", months, index=11, format_func=lambda x: f"{x:02d}")
-        # Создаём даты начала и конца (первое число месяца)
         start_date = pd.Timestamp(year=start_year, month=start_month, day=1)
-        # Конец месяца: последний день месяца
         if end_month == 12:
             end_date = pd.Timestamp(year=end_year, month=12, day=31)
         else:
             end_date = pd.Timestamp(year=end_year, month=end_month+1, day=1) - pd.Timedelta(days=1)
-        # Фильтруем основные данные
         mask_main = (df_main["Дата"] >= start_date) & (df_main["Дата"] <= end_date)
         df_main_filtered = df_main.loc[mask_main].copy()
-        # Фильтруем данные стоимости
         if not df_cost.empty:
             mask_cost = (df_cost["Дата"] >= start_date) & (df_cost["Дата"] <= end_date)
             df_cost_filtered = df_cost.loc[mask_cost].copy()
@@ -305,7 +298,6 @@ if uploaded_file is not None:
     font_color = "#fafafa"
     title_font_color = "#fafafa"
 
-    # ---------- Общая функция для оформления графиков с hovertemplate ----------
     def apply_hover_template(fig):
         for trace in fig.data:
             trace.update(hovertemplate='%{x}: %{y:.0f}')
@@ -394,11 +386,9 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
-    # ---------- 4. Динамика по источникам (с локальными фильтрами) ----------
-    # Локальные фильтры над графиком: выбор источников
+    # ---------- 4. Динамика по источникам (с локальным фильтром) ----------
     st.markdown("<div class='section-header'>📊 Динамика по источникам</div>", unsafe_allow_html=True)
     if not df_plot_main.empty:
-        # Мультиселект для источников
         selected_sources_local = st.multiselect(
             "Выберите источники для отображения",
             options=source_columns,
@@ -436,8 +426,6 @@ if uploaded_file is not None:
         st.info("Нет данных для выбранного периода")
 
     # ---------- 5. Сравнение источников (суммарно) ----------
-    # Оставим этот график, но он будет использовать все источники без фильтрации,
-    # либо можно применить выбранные локальные источники. Пусть показывает все.
     if source_columns and not df_main_filtered.empty:
         st.markdown("<div class='section-header'>⚖️ Сравнение источников (суммарно)</div>", unsafe_allow_html=True)
         source_totals = df_main_filtered[source_columns].sum().sort_values(ascending=False)
@@ -463,7 +451,6 @@ if uploaded_file is not None:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # Затраты на источники (если есть)
         cost_cols = [c for c in df_main.columns if "затраты" in c.lower() and "руб" in c.lower()]
         if cost_cols:
             cost_mapping = {
