@@ -120,10 +120,29 @@ def format_russian_month(date):
                  7: 'июл', 8: 'авг', 9: 'сен', 10: 'окт', 11: 'ноя', 12: 'дек'}
     return f"{months_ru[date.month]} {date.year}"
 
-def parse_month_year_to_date(month_str):
-    if pd.isna(month_str):
+def parse_date_flexible(date_val):
+    """
+    Преобразует входящее значение в datetime.
+    Поддерживает:
+    - строки вида "2023-01-01" (или любой формат, распознаваемый pd.to_datetime)
+    - "Январь 2023"
+    - "01.23"
+    Если не удаётся, возвращает NaT.
+    """
+    if pd.isna(date_val):
         return pd.NaT
-    s = str(month_str).strip()
+    # Если уже datetime, возвращаем как есть
+    if isinstance(date_val, pd.Timestamp):
+        return date_val
+    s = str(date_val).strip()
+    # Сначала пробуем стандартный парсинг
+    try:
+        dt = pd.to_datetime(s, errors='coerce')
+        if not pd.isna(dt):
+            return dt
+    except:
+        pass
+    # Пробуем русские названия месяцев
     months_ru = {
         'январь': 1, 'февраль': 2, 'март': 3, 'апрель': 4, 'май': 5, 'июнь': 6,
         'июль': 7, 'август': 8, 'сентябрь': 9, 'октябрь': 10, 'ноябрь': 11, 'декабрь': 12
@@ -135,6 +154,7 @@ def parse_month_year_to_date(month_str):
                 year = int(year_match.group())
                 return pd.Timestamp(year=year, month=num, day=1)
             return pd.NaT
+    # Пробуем формат MM.YY
     parts = s.split('.')
     if len(parts) == 2:
         try:
@@ -203,7 +223,10 @@ if uploaded_file is not None:
     # ---------- Предобработка второго листа (стоимость) ----------
     if not df_cost.empty:
         df_cost = df_cost.dropna(subset=["Дата"], how="all")
-        df_cost["Дата"] = df_cost["Дата"].apply(parse_month_year_to_date)
+        # Если дата не является datetime, преобразуем гибко
+        if not pd.api.types.is_datetime64_any_dtype(df_cost["Дата"]):
+            df_cost["Дата"] = df_cost["Дата"].apply(parse_date_flexible)
+        # Если уже datetime, оставляем
         df_cost = df_cost.dropna(subset=["Дата"])
         df_cost = df_cost.sort_values("Дата")
         if "Стоимость вышедшего" in df_cost.columns:
@@ -214,7 +237,6 @@ if uploaded_file is not None:
     # ---------- Фильтры (сайдбар) ----------
     with st.sidebar:
         st.header("🔍 Фильтры")
-        # Фильтр по дате (основной лист)
         min_date = df_main["Дата"].min()
         max_date = df_main["Дата"].max()
         date_range = st.date_input(
@@ -296,7 +318,7 @@ if uploaded_file is not None:
             </div>
         """, unsafe_allow_html=True)
 
-    # ---------- Подготовка данных для графиков (без фильтра месяцев в сайдбаре) ----------
+    # ---------- Подготовка данных для графиков ----------
     df_plot_main = df_main_filtered.copy()
     df_plot_main["Месяц"] = df_plot_main["Дата"].apply(format_russian_month)
 
@@ -505,7 +527,6 @@ if uploaded_file is not None:
         # --- Локальные фильтры для этого графика ---
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-            # Кабинеты
             cabinets = sorted(df_cost_filtered["Кабинет"].dropna().unique())
             if cabinets:
                 selected_cabinets = st.multiselect(
@@ -523,7 +544,6 @@ if uploaded_file is not None:
                 selected_cabinets = []
 
         with col_f2:
-            # Проекты (из отфильтрованных по кабинетам данных)
             projects = sorted(df_cost_local["Проект"].dropna().unique())
             if projects:
                 selected_projects = st.multiselect(
@@ -538,8 +558,7 @@ if uploaded_file is not None:
                 selected_projects = []
 
         with col_f3:
-            # Месяцы (хронологически отсортированные)
-            # Получаем уникальные даты из отфильтрованных данных
+            # Месяцы (хронологически)
             unique_dates = sorted(df_cost_local["Дата"].unique())
             month_options = [format_russian_month(d) for d in unique_dates]
             if month_options:
@@ -556,7 +575,6 @@ if uploaded_file is not None:
 
         # --- Построение графика ---
         if not df_cost_local.empty:
-            # Агрегируем среднюю стоимость по месяцам и проектам
             df_cost_agg = df_cost_local.groupby(["Дата", "Проект"], as_index=False)["Стоимость вышедшего"].mean()
             df_cost_agg["Месяц"] = df_cost_agg["Дата"].apply(format_russian_month)
             df_cost_agg = df_cost_agg.sort_values("Дата")
