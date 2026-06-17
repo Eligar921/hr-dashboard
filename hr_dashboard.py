@@ -112,6 +112,11 @@ def format_russian_month(date):
                  7: 'июл', 8: 'авг', 9: 'сен', 10: 'окт', 11: 'ноя', 12: 'дек'}
     return f"{months_ru[date.month]} {date.year}"
 
+def month_name(month_num):
+    months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+              'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+    return months[month_num-1]
+
 def parse_date_flexible(date_val):
     if pd.isna(date_val):
         return pd.NaT
@@ -201,7 +206,7 @@ if uploaded_file is not None:
         source_columns.append("Прочие источники")
 
     # ---------- Предобработка второго листа (стоимость) ----------
-    if not df_cost.empty:
+    if not df_cost.empty and "Дата" in df_cost.columns:
         df_cost = df_cost.dropna(subset=["Дата"], how="all")
         if not pd.api.types.is_datetime64_any_dtype(df_cost["Дата"]):
             df_cost["Дата"] = df_cost["Дата"].apply(parse_date_flexible)
@@ -211,8 +216,10 @@ if uploaded_file is not None:
             df_cost["Стоимость вышедшего"] = to_numeric(df_cost["Стоимость вышедшего"])
             df_cost = df_cost.dropna(subset=["Стоимость вышедшего"])
         df_cost.columns = df_cost.columns.str.strip()
+    else:
+        df_cost = pd.DataFrame()
 
-    # ---------- Фильтры (сайдбар) - только диапазон дат (месяц-год) ----------
+    # ---------- Фильтры (сайдбар) ----------
     with st.sidebar:
         st.header("🔍 Фильтры")
         min_date = df_main["Дата"].min()
@@ -220,9 +227,9 @@ if uploaded_file is not None:
         years = list(range(min_date.year, max_date.year + 1))
         months = list(range(1, 13))
         start_year = st.selectbox("Год начала", years, index=0)
-        start_month = st.selectbox("Месяц начала", months, index=0, format_func=lambda x: f"{x:02d}")
+        start_month = st.selectbox("Месяц начала", months, index=0, format_func=month_name)
         end_year = st.selectbox("Год окончания", years, index=len(years)-1)
-        end_month = st.selectbox("Месяц окончания", months, index=11, format_func=lambda x: f"{x:02d}")
+        end_month = st.selectbox("Месяц окончания", months, index=11, format_func=month_name)
         start_date = pd.Timestamp(year=start_year, month=start_month, day=1)
         if end_month == 12:
             end_date = pd.Timestamp(year=end_year, month=12, day=31)
@@ -298,9 +305,16 @@ if uploaded_file is not None:
     font_color = "#fafafa"
     title_font_color = "#fafafa"
 
-    def apply_hover_template(fig):
+    # Функция для установки кастомного hovertemplate (только точка)
+    def apply_hover_template(fig, x_col='Месяц', y_col=None):
         for trace in fig.data:
-            trace.update(hovertemplate='%{x}: %{y:.0f}')
+            # Получаем имя серии (например, название проекта или источника)
+            name = trace.name if trace.name else ''
+            # Используем имя в шаблоне
+            trace.update(
+                hovertemplate=f'<b>{name}</b><br>%{{x}}: %{{y:.0f}}<extra></extra>',
+                hoverlabel=dict(bgcolor='black', font_color='white')
+            )
         return fig
 
     # ---------- 1. График: Трудоустроено от ОМПП ----------
@@ -386,7 +400,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
-    # ---------- 4. Динамика по источникам (с локальным фильтром) ----------
+    # ---------- 4. Динамика по источникам ----------
     st.markdown("<div class='section-header'>📊 Динамика по источникам</div>", unsafe_allow_html=True)
     if not df_plot_main.empty:
         selected_sources_local = st.multiselect(
@@ -486,7 +500,7 @@ if uploaded_file is not None:
                     )
                     st.plotly_chart(fig_cost, use_container_width=True)
 
-    # ---------- 6. Себестоимость найма (общая) ----------
+    # ---------- 6. Себестоимость найма ----------
     if total_hired_col in df_plot_main and total_cost_col in df_plot_main and not df_plot_main.empty:
         st.markdown("<div class='section-header'>💰 Себестоимость найма (общая)</div>", unsafe_allow_html=True)
         df_plot_main["Себестоимость"] = df_plot_main[total_cost_col] / df_plot_main[total_hired_col]
@@ -512,7 +526,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_cost, use_container_width=True)
 
-    # ---------- 7. Стоимость выхода по проектам (с локальными фильтрами) ----------
+    # ---------- 7. Стоимость выхода по проектам ----------
     if not df_cost_filtered.empty and "Проект" in df_cost_filtered.columns:
         st.markdown("<div class='section-header'>🏷️ Стоимость выхода по проектам (по месяцам)</div>", unsafe_allow_html=True)
 
