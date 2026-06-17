@@ -97,6 +97,13 @@ st.markdown("""
     .stMultiSelect label {
         color: #fafafa;
     }
+    /* Стиль для фильтров над графиком */
+    .filter-row {
+        background-color: #1e1e24;
+        padding: 0.8rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -235,58 +242,12 @@ if uploaded_file is not None:
             default=source_columns
         )
 
-        # Фильтр по месяцам (для графиков)
-        # Создаём список уникальных месяцев (в формате "янв 2023") из отфильтрованных данных
-        if not df_main_filtered.empty:
-            all_months = df_main_filtered["Дата"].apply(format_russian_month).unique()
-            selected_months = st.multiselect(
-                "Выберите месяцы для отображения на графиках",
-                options=sorted(all_months),
-                default=sorted(all_months)
-            )
-            # Применяем фильтр по месяцам к основному датафрейму для графиков
-            df_plot_main = df_main_filtered[df_main_filtered["Дата"].apply(format_russian_month).isin(selected_months)].copy()
-        else:
-            df_plot_main = df_main_filtered.copy()
-            selected_months = []
-
-        # Фильтры для второго листа (кабинет и проекты)
-        if not df_cost_filtered.empty:
-            cabinets = sorted(df_cost_filtered["Кабинет"].dropna().unique())
-            if cabinets:
-                selected_cabinets = st.multiselect(
-                    "Выберите кабинет(ы)",
-                    options=cabinets,
-                    default=cabinets
-                )
-                if selected_cabinets:
-                    df_cost_filtered = df_cost_filtered[df_cost_filtered["Кабинет"].isin(selected_cabinets)]
-            else:
-                selected_cabinets = []
-
-            projects = sorted(df_cost_filtered["Проект"].dropna().unique())
-            if projects:
-                selected_projects = st.multiselect(
-                    "Выберите проект(ы) для графика стоимости",
-                    options=projects,
-                    default=projects
-                )
-                if selected_projects:
-                    df_cost_filtered = df_cost_filtered[df_cost_filtered["Проект"].isin(selected_projects)]
-            else:
-                selected_projects = []
-        else:
-            df_cost_filtered = pd.DataFrame()
-            selected_cabinets = []
-            selected_projects = []
-
     # ---------- Метрики (4 карточки) ----------
     st.markdown("<div class='section-header'>📈 Ключевые показатели</div>", unsafe_allow_html=True)
 
     total_hired = df_main_filtered[total_hired_col].sum() if total_hired_col in df_main_filtered else 0
     ompp_hired = df_main_filtered[ompp_hired_col].sum() if ompp_hired_col in df_main_filtered else 0
 
-    # Средняя стоимость с Авито (из первого листа)
     if avito_hired_col in df_main_filtered.columns and avito_cost_col in df_main_filtered.columns:
         total_avito_cost = df_main_filtered[avito_cost_col].sum()
         total_avito_hired = df_main_filtered[avito_hired_col].sum()
@@ -296,7 +257,6 @@ if uploaded_file is not None:
 
     total_avito_responses = df_main_filtered[avito_responses_col].sum() if avito_responses_col in df_main_filtered else 0
 
-    # Форматирование чисел с точкой как разделитель тысяч
     def fmt_num(x):
         if x is None:
             return "Н/Д"
@@ -336,12 +296,9 @@ if uploaded_file is not None:
             </div>
         """, unsafe_allow_html=True)
 
-    # ---------- Подготовка данных для графиков (с учётом выбранных месяцев) ----------
-    if not df_plot_main.empty:
-        df_plot_main["Месяц"] = df_plot_main["Дата"].apply(format_russian_month)
-    else:
-        df_plot_main = df_main_filtered.copy()
-        df_plot_main["Месяц"] = df_plot_main["Дата"].apply(format_russian_month)
+    # ---------- Подготовка данных для графиков (без фильтра месяцев в сайдбаре) ----------
+    df_plot_main = df_main_filtered.copy()
+    df_plot_main["Месяц"] = df_plot_main["Дата"].apply(format_russian_month)
 
     plot_template = "plotly_dark"
     font_color = "#fafafa"
@@ -427,7 +384,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
-    # ---------- 4. Динамика по источникам (выбранные) ----------
+    # ---------- 4. Динамика по источникам ----------
     if selected_sources and not df_plot_main.empty:
         st.markdown("<div class='section-header'>📊 Динамика по источникам</div>", unsafe_allow_html=True)
         df_sources = df_plot_main[["Месяц"] + selected_sources].melt(
@@ -480,7 +437,7 @@ if uploaded_file is not None:
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # Затраты на источники (если есть)
+        # Затраты на источники
         cost_cols = [c for c in df_main.columns if "затраты" in c.lower() and "руб" in c.lower()]
         if cost_cols:
             cost_mapping = {
@@ -541,60 +498,111 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_cost, use_container_width=True)
 
-    # ---------- 7. Стоимость выхода по проектам (из второго листа) ----------
+    # ---------- 7. Стоимость выхода по проектам (с локальными фильтрами) ----------
     if not df_cost_filtered.empty and "Проект" in df_cost_filtered.columns:
         st.markdown("<div class='section-header'>🏷️ Стоимость выхода по проектам (по месяцам)</div>", unsafe_allow_html=True)
-        # Агрегируем среднюю стоимость по месяцам и проектам
-        df_cost_agg = df_cost_filtered.groupby(["Дата", "Проект"], as_index=False)["Стоимость вышедшего"].mean()
-        df_cost_agg["Месяц"] = df_cost_agg["Дата"].apply(format_russian_month)
-        df_cost_agg = df_cost_agg.sort_values("Дата")
 
-        # Фильтруем по выбранным месяцам (если выбраны)
-        if selected_months:
-            df_cost_agg = df_cost_agg[df_cost_agg["Месяц"].isin(selected_months)]
+        # --- Локальные фильтры для этого графика ---
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            # Кабинеты
+            cabinets = sorted(df_cost_filtered["Кабинет"].dropna().unique())
+            if cabinets:
+                selected_cabinets = st.multiselect(
+                    "Выберите кабинет(ы)",
+                    options=cabinets,
+                    default=cabinets,
+                    key="cost_cabinets"
+                )
+                if selected_cabinets:
+                    df_cost_local = df_cost_filtered[df_cost_filtered["Кабинет"].isin(selected_cabinets)]
+                else:
+                    df_cost_local = df_cost_filtered
+            else:
+                df_cost_local = df_cost_filtered
+                selected_cabinets = []
 
-        if not df_cost_agg.empty:
-            fig_cost_projects = px.line(
-                df_cost_agg,
-                x="Месяц",
-                y="Стоимость вышедшего",
-                color="Проект",
-                title="Средняя стоимость выхода по проектам (руб.)",
-                markers=True,
-                template=plot_template
-            )
-            # Улучшаем читаемость: переносим легенду справа, увеличиваем высоту
-            fig_cost_projects.update_layout(
-                font=dict(color=font_color),
-                title_font=dict(color=title_font_color),
-                xaxis_title="Месяц",
-                yaxis_title="Средняя стоимость (руб.)",
-                hovermode="x unified",
-                margin=dict(l=20, r=20, t=40, b=20),
-                legend=dict(
-                    orientation="v",
-                    yanchor="top",
-                    y=1,
-                    xanchor="left",
-                    x=1.02,
-                    bgcolor="rgba(0,0,0,0.5)",
-                    font=dict(size=10)
-                ),
-                height=600,  # увеличенная высота
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(color=font_color),
-                yaxis=dict(color=font_color, rangemode="tozero") # отступ сверху
-            )
-            st.plotly_chart(fig_cost_projects, use_container_width=True)
+        with col_f2:
+            # Проекты (из отфильтрованных по кабинетам данных)
+            projects = sorted(df_cost_local["Проект"].dropna().unique())
+            if projects:
+                selected_projects = st.multiselect(
+                    "Выберите проект(ы)",
+                    options=projects,
+                    default=projects,
+                    key="cost_projects"
+                )
+                if selected_projects:
+                    df_cost_local = df_cost_local[df_cost_local["Проект"].isin(selected_projects)]
+            else:
+                selected_projects = []
+
+        with col_f3:
+            # Месяцы (хронологически отсортированные)
+            # Получаем уникальные даты из отфильтрованных данных
+            unique_dates = sorted(df_cost_local["Дата"].unique())
+            month_options = [format_russian_month(d) for d in unique_dates]
+            if month_options:
+                selected_months = st.multiselect(
+                    "Выберите месяцы",
+                    options=month_options,
+                    default=month_options,
+                    key="cost_months"
+                )
+                if selected_months:
+                    df_cost_local = df_cost_local[df_cost_local["Дата"].apply(format_russian_month).isin(selected_months)]
+            else:
+                selected_months = []
+
+        # --- Построение графика ---
+        if not df_cost_local.empty:
+            # Агрегируем среднюю стоимость по месяцам и проектам
+            df_cost_agg = df_cost_local.groupby(["Дата", "Проект"], as_index=False)["Стоимость вышедшего"].mean()
+            df_cost_agg["Месяц"] = df_cost_agg["Дата"].apply(format_russian_month)
+            df_cost_agg = df_cost_agg.sort_values("Дата")
+
+            if not df_cost_agg.empty:
+                fig_cost_projects = px.line(
+                    df_cost_agg,
+                    x="Месяц",
+                    y="Стоимость вышедшего",
+                    color="Проект",
+                    title="Средняя стоимость выхода по проектам (руб.)",
+                    markers=True,
+                    template=plot_template
+                )
+                fig_cost_projects.update_layout(
+                    font=dict(color=font_color),
+                    title_font=dict(color=title_font_color),
+                    xaxis_title="Месяц",
+                    yaxis_title="Средняя стоимость (руб.)",
+                    hovermode="x unified",
+                    margin=dict(l=20, r=20, t=40, b=20),
+                    legend=dict(
+                        orientation="v",
+                        yanchor="top",
+                        y=1,
+                        xanchor="left",
+                        x=1.02,
+                        bgcolor="rgba(0,0,0,0.5)",
+                        font=dict(size=10)
+                    ),
+                    height=600,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(color=font_color),
+                    yaxis=dict(color=font_color, rangemode="tozero")
+                )
+                st.plotly_chart(fig_cost_projects, use_container_width=True)
+            else:
+                st.info("Нет данных для отображения стоимости по проектам за выбранные параметры")
         else:
-            st.info("Нет данных для отображения стоимости по проектам за выбранные месяцы")
+            st.info("Нет данных для отображения стоимости по проектам (проверьте фильтры)")
 
     # ---------- Таблица и экспорт ----------
     st.markdown("<div class='section-header'>📋 Исходные данные (отфильтрованные)</div>", unsafe_allow_html=True)
     display_cols = ["Дата", total_hired_col, ompp_hired_col, avito_responses_col, total_cost_col] + selected_sources
     display_cols = [c for c in display_cols if c in df_main_filtered.columns]
-    # Форматирование таблицы: разделитель тысяч – точка, десятичный – запятая
     st.dataframe(df_main_filtered[display_cols].style.format(thousands=".", decimal=","))
 
     output = io.BytesIO()
