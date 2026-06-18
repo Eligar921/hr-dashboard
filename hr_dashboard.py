@@ -112,11 +112,6 @@ def format_russian_month(date):
                  7: 'июл', 8: 'авг', 9: 'сен', 10: 'окт', 11: 'ноя', 12: 'дек'}
     return f"{months_ru[date.month]} {date.year}"
 
-def month_name(month_num):
-    months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-              'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
-    return months[month_num-1]
-
 def parse_date_flexible(date_val):
     if pd.isna(date_val):
         return pd.NaT
@@ -219,22 +214,35 @@ if uploaded_file is not None:
     else:
         df_cost = pd.DataFrame()
 
-    # ---------- Фильтры (сайдбар) ----------
+    # ---------- Фильтры (сайдбар) с месяцами словами ----------
+    # Список русских названий месяцев
+    month_names_ru = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+
     with st.sidebar:
         st.header("🔍 Фильтры")
         min_date = df_main["Дата"].min()
         max_date = df_main["Дата"].max()
         years = list(range(min_date.year, max_date.year + 1))
-        months = list(range(1, 13))
+        # Выбор года начала
         start_year = st.selectbox("Год начала", years, index=0)
-        start_month = st.selectbox("Месяц начала", months, index=0, format_func=month_name)
+        # Выбор месяца начала (словами)
+        start_month_name = st.selectbox("Месяц начала", month_names_ru, index=0)
+        start_month = month_names_ru.index(start_month_name) + 1  # номер месяца
+
+        # Выбор года окончания
         end_year = st.selectbox("Год окончания", years, index=len(years)-1)
-        end_month = st.selectbox("Месяц окончания", months, index=11, format_func=month_name)
+        # Выбор месяца окончания (словами)
+        end_month_name = st.selectbox("Месяц окончания", month_names_ru, index=11)
+        end_month = month_names_ru.index(end_month_name) + 1
+
+        # Формируем даты
         start_date = pd.Timestamp(year=start_year, month=start_month, day=1)
         if end_month == 12:
             end_date = pd.Timestamp(year=end_year, month=12, day=31)
         else:
             end_date = pd.Timestamp(year=end_year, month=end_month+1, day=1) - pd.Timedelta(days=1)
+
         mask_main = (df_main["Дата"] >= start_date) & (df_main["Дата"] <= end_date)
         df_main_filtered = df_main.loc[mask_main].copy()
         if not df_cost.empty:
@@ -305,16 +313,13 @@ if uploaded_file is not None:
     font_color = "#fafafa"
     title_font_color = "#fafafa"
 
-    # Функция для установки кастомного hovertemplate (только точка)
-    def apply_hover_template(fig, x_col='Месяц', y_col=None):
+    # Настройки hover: показывать только одну линию, чёрный фон, белый текст
+    hoverlabel_config = dict(bgcolor='black', font_color='white', font_size=12)
+
+    def apply_hover_template(fig):
         for trace in fig.data:
-            # Получаем имя серии (например, название проекта или источника)
-            name = trace.name if trace.name else ''
-            # Используем имя в шаблоне
-            trace.update(
-                hovertemplate=f'<b>{name}</b><br>%{{x}}: %{{y:.0f}}<extra></extra>',
-                hoverlabel=dict(bgcolor='black', font_color='white')
-            )
+            trace.update(hovertemplate='%{x}: %{y:.0f}')
+        fig.update_layout(hovermode='closest', hoverlabel=hoverlabel_config)
         return fig
 
     # ---------- 1. График: Трудоустроено от ОМПП ----------
@@ -333,7 +338,6 @@ if uploaded_file is not None:
             title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Трудоустроено",
-            hovermode="x",
             margin=dict(l=20, r=20, t=40, b=20),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
@@ -362,7 +366,6 @@ if uploaded_file is not None:
                 title_font=dict(color=title_font_color),
                 xaxis_title="Месяц",
                 yaxis_title="Средняя стоимость (руб.)",
-                hovermode="x",
                 margin=dict(l=20, r=20, t=40, b=20),
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
@@ -391,7 +394,6 @@ if uploaded_file is not None:
             title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Отклики",
-            hovermode="x",
             margin=dict(l=20, r=20, t=40, b=20),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
@@ -400,7 +402,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_responses, use_container_width=True)
 
-    # ---------- 4. Динамика по источникам ----------
+    # ---------- 4. Динамика по источникам (с локальным фильтром) ----------
     st.markdown("<div class='section-header'>📊 Динамика по источникам</div>", unsafe_allow_html=True)
     if not df_plot_main.empty:
         selected_sources_local = st.multiselect(
@@ -425,7 +427,6 @@ if uploaded_file is not None:
                 title_font=dict(color=title_font_color),
                 xaxis_title="Месяц",
                 yaxis_title="Трудоустроено",
-                hovermode="x",
                 margin=dict(l=20, r=20, t=40, b=20),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 plot_bgcolor='rgba(0,0,0,0)',
@@ -500,7 +501,7 @@ if uploaded_file is not None:
                     )
                     st.plotly_chart(fig_cost, use_container_width=True)
 
-    # ---------- 6. Себестоимость найма ----------
+    # ---------- 6. Себестоимость найма (общая) ----------
     if total_hired_col in df_plot_main and total_cost_col in df_plot_main and not df_plot_main.empty:
         st.markdown("<div class='section-header'>💰 Себестоимость найма (общая)</div>", unsafe_allow_html=True)
         df_plot_main["Себестоимость"] = df_plot_main[total_cost_col] / df_plot_main[total_hired_col]
@@ -517,7 +518,6 @@ if uploaded_file is not None:
             title_font=dict(color=title_font_color),
             xaxis_title="Месяц",
             yaxis_title="Себестоимость (руб.)",
-            hovermode="x",
             margin=dict(l=20, r=20, t=40, b=20),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
@@ -526,7 +526,7 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig_cost, use_container_width=True)
 
-    # ---------- 7. Стоимость выхода по проектам ----------
+    # ---------- 7. Стоимость выхода по проектам (с локальными фильтрами) ----------
     if not df_cost_filtered.empty and "Проект" in df_cost_filtered.columns:
         st.markdown("<div class='section-header'>🏷️ Стоимость выхода по проектам (по месяцам)</div>", unsafe_allow_html=True)
 
@@ -597,7 +597,6 @@ if uploaded_file is not None:
                     title_font=dict(color=title_font_color),
                     xaxis_title="Месяц",
                     yaxis_title="Средняя стоимость (руб.)",
-                    hovermode="x",
                     margin=dict(l=20, r=20, t=40, b=20),
                     legend=dict(
                         orientation="v",
