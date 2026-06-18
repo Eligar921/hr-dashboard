@@ -215,7 +215,6 @@ if uploaded_file is not None:
         df_cost = pd.DataFrame()
 
     # ---------- Фильтры (сайдбар) с месяцами словами ----------
-    # Список русских названий месяцев
     month_names_ru = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
@@ -224,19 +223,14 @@ if uploaded_file is not None:
         min_date = df_main["Дата"].min()
         max_date = df_main["Дата"].max()
         years = list(range(min_date.year, max_date.year + 1))
-        # Выбор года начала
         start_year = st.selectbox("Год начала", years, index=0)
-        # Выбор месяца начала (словами)
         start_month_name = st.selectbox("Месяц начала", month_names_ru, index=0)
-        start_month = month_names_ru.index(start_month_name) + 1  # номер месяца
+        start_month = month_names_ru.index(start_month_name) + 1
 
-        # Выбор года окончания
         end_year = st.selectbox("Год окончания", years, index=len(years)-1)
-        # Выбор месяца окончания (словами)
         end_month_name = st.selectbox("Месяц окончания", month_names_ru, index=11)
         end_month = month_names_ru.index(end_month_name) + 1
 
-        # Формируем даты
         start_date = pd.Timestamp(year=start_year, month=start_month, day=1)
         if end_month == 12:
             end_date = pd.Timestamp(year=end_year, month=12, day=31)
@@ -313,13 +307,20 @@ if uploaded_file is not None:
     font_color = "#fafafa"
     title_font_color = "#fafafa"
 
-    # Настройки hover: показывать только одну линию, чёрный фон, белый текст
-    hoverlabel_config = dict(bgcolor='black', font_color='white', font_size=12)
-
+    # Единые настройки для всех графиков: hovermode = closest, чёрный фон подсказок и легенды
     def apply_hover_template(fig):
         for trace in fig.data:
             trace.update(hovertemplate='%{x}: %{y:.0f}')
-        fig.update_layout(hovermode='closest', hoverlabel=hoverlabel_config)
+        fig.update_layout(
+            hovermode='closest',
+            hoverlabel=dict(bgcolor='black', font_color='white', font_size=12),
+            legend=dict(
+                bgcolor='black',
+                font=dict(color='white'),
+                bordercolor='gray',
+                borderwidth=1
+            )
+        )
         return fig
 
     # ---------- 1. График: Трудоустроено от ОМПП ----------
@@ -604,8 +605,10 @@ if uploaded_file is not None:
                         y=1,
                         xanchor="left",
                         x=1.02,
-                        bgcolor="rgba(0,0,0,0.5)",
-                        font=dict(size=10)
+                        bgcolor="black",
+                        font=dict(color="white"),
+                        bordercolor="gray",
+                        borderwidth=1
                     ),
                     height=600,
                     plot_bgcolor='rgba(0,0,0,0)',
